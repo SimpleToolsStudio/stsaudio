@@ -1,0 +1,12 @@
+# Build artifacts
+*.pyd
+*.o
+*.a
+*.whl
+*.tar.gz
+
+# Python cache
+__pycache__/
+*.egg-info/
+build/
+dist/
