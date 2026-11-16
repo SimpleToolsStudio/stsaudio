@@ -79,10 +79,6 @@ For advanced use cases, all miniaudio and minimp3 functions are exposed as `fn_*
    ```cmd
    build-pyd.bat
    ```
-4. Build the wheel:
-   ```cmd
-   python build_wheel.py
-   ```
 
 ## License
 
