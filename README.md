@@ -9,7 +9,7 @@ It supports playing **MP3**, **WAV**, and **FLAC** files with zero external depe
 
 ## Features
 
-- **Zero dependencies**: Everything is statically linked into a single `.pyd` file.
+- **Zero dependencies**: Everything is compiled with MSVC and linked directly into a single `.pyd` file.
 - **High-level APIs**: Simple functions to load, play, pause, seek, and control volume.
 - **Low-level access**: Exposes over 1200 raw C APIs via `PyCapsule` for advanced users.
 - **Permissive license**: MIT license (free for commercial and closed-source use).
@@ -36,15 +36,53 @@ print(f"Decoded {frames} frames at {sample_rate} Hz")
 
 # 3. Non-blocking playback engine
 audio.engine_init()
+
+# Load a sound and get its ID (supports up to 64 simultaneous sounds)
 sid = audio.sound_load("path/to/your/music.mp3")
+
+# Control playback
 audio.sound_play(sid)
-audio.sound_set_volume(sid, 0.5)
+audio.sound_set_volume(sid, 0.5)  # 50% volume
 audio.sound_set_looping(sid, True)
+
 print("Duration:", audio.sound_get_duration(sid), "seconds")
+
+# Stop and unload
 audio.sound_stop(sid)
 audio.sound_unload(sid)
+
 audio.engine_uninit()
 ```
+
+## API Reference
+
+STSAudio exposes 21 high-level functions for common audio tasks:
+
+- **Information**: `version()`
+- **Decoding**: `decode_file()`, `decode_memory()`
+- **Blocking Playback**: `play_file()`
+- **Engine**: `engine_init()`, `engine_uninit()`, `engine_set_volume()`, `engine_stop_all()`
+- **Sound Management**: `sound_load()`, `sound_play()`, `sound_stop()`, `sound_pause()`, `sound_resume()`, `sound_unload()`
+- **Sound Properties**: `sound_set_volume()`, `sound_get_volume()`, `sound_set_looping()`, `sound_is_playing()`
+- **Playback Position**: `sound_seek()`, `sound_get_duration()`, `sound_get_position()`
+
+### Low-Level Access
+For advanced use cases, all miniaudio and minimp3 functions are exposed as `fn_*` PyCapsules. You can retrieve the raw C function pointers using `ctypes`.
+
+## Building from Source
+
+*Requirements: MSVC (Visual Studio 2022 Build Tools) and Python 3.14 (64-bit).*
+
+1. Clone the repository.
+2. Download headers: run `Download-HeaderFile.bat` (or manually download `miniaudio.h`, `minimp3.h`, and `minimp3_ex.h`).
+3. Compile the `.pyd`:
+   ```cmd
+   build-pyd.bat
+   ```
+4. Build the wheel:
+   ```cmd
+   python build_wheel.py
+   ```
 
 ## License
 
@@ -54,3 +92,4 @@ It uses:
 - [minimp3](https://github.com/lieff/minimp3) (CC0)
 
 Copyright (c) 2026 SimpleToolsStudio
+```

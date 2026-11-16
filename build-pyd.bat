@@ -1,106 +1,73 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-rem ==============================================================================
-rem Auto-detect 64-bit standard Python (Avoid free-threaded 't' builds)
-rem ==============================================================================
-echo Searching for 64-bit Python...
-set "PYTHON="
+echo Searching for Python 3.14 in C drive...
+set "PYTHON_EXE=C:\Program Files\Python314\python.exe"
 
-rem Try python first, then python3, then py launcher
-for %%P in (python python3) do (
-    if not defined PYTHON (
-        for /f "delims=" %%i in ('%%P -c "import sys,struct; print(struct.calcsize('P')*8)" 2^>nul') do (
-            if "%%i"=="64" set "PYTHON=%%P"
-        )
-    )
+if not exist "!PYTHON_EXE!" (
+    set "PYTHON_EXE=C:\Python314\python.exe"
 )
 
-rem If not found via PATH, try py launcher (force standard 64-bit)
-if not defined PYTHON (
-    for /f "delims=" %%i in ('py -3-64 -c "import sys,struct; print(struct.calcsize('P')*8)" 2^>nul') do (
-        if "%%i"=="64" set "PYTHON=py -3-64"
-    )
-)
-
-if not defined PYTHON (
-    echo [ERROR] No 64-bit Python found.
-    echo Please install Python 64-bit and add it to your PATH.
+if not exist "!PYTHON_EXE!" (
+    echo [ERROR] Python 3.14 not found in C drive.
+    echo Downloading EXE for Python 3.14...
+    start https://www.python.org/ftp/python/3.14.10/python-3.14.10-amd64.exe
     goto :fail
 )
-echo Using Python: %PYTHON%
 
-rem --- Check for required source files ---
+echo Selected Python: "!PYTHON_EXE!"
+
 if not exist audio.c       ( echo [ERROR] audio.c not found.       & goto :fail )
 if not exist miniaudio.h   ( echo [ERROR] miniaudio.h not found.   & goto :fail )
 if not exist minimp3.h     ( echo [ERROR] minimp3.h not found.     & goto :fail )
 if not exist minimp3_ex.h  ( echo [ERROR] minimp3_ex.h not found.  & goto :fail )
 
-rem ==============================================================================
-rem Query configuration via temp script (avoids all quoting issues)
-rem ==============================================================================
-echo Querying Python configuration...
-
->"%TEMP%\pyconfig.py" echo import sysconfig
->>"%TEMP%\pyconfig.py" echo print(sysconfig.get_paths()['include'])
->>"%TEMP%\pyconfig.py" echo print(sysconfig.get_config_var('LIBDIR') or '')
+set "PY_SCRIPT=%TEMP%\pyconfig.py"
+>"!PY_SCRIPT!" echo(import sysconfig
+>>"!PY_SCRIPT!" echo(print(sysconfig.get_paths()['include'])
+>>"!PY_SCRIPT!" echo(print(sysconfig.get_config_var('installed_base') + '\\libs')
 
 set "LINE_NUM=0"
-for /f "usebackq delims=" %%i in (`%PYTHON% "%TEMP%\pyconfig.py"`) do (
+for /f "usebackq delims=" %%i in (`""!PYTHON_EXE!" "!PY_SCRIPT!""`) do (
     set /a LINE_NUM+=1
     if !LINE_NUM! EQU 1 set "PY_INC=%%i"
     if !LINE_NUM! EQU 2 set "PY_LIBDIR=%%i"
 )
-del "%TEMP%\pyconfig.py" >nul 2>nul
+del "!PY_SCRIPT!" >nul 2>nul
 
-rem --- Fallback for LIBDIR if empty ---
-if not defined PY_LIBDIR (
-    for /f "usebackq delims=" %%i in (`%PYTHON% -c "import sys,os; print(os.path.join(sys.base_prefix, 'libs'))"`) do set "PY_LIBDIR=%%i"
-)
-
-rem ==============================================================================
-rem Determine Python import library
-rem ==============================================================================
-set "PY_IMPLIB="
-for %%f in ("%PY_LIBDIR%\python3*.lib" "%PY_LIBDIR%\libpython3*.dll.a") do (
-    if not defined PY_IMPLIB if exist "%%~f" set "PY_IMPLIB=%%~f"
-)
-
-if not defined PY_IMPLIB (
-    echo [ERROR] Python import library not found in "%PY_LIBDIR%"
+if not defined PY_INC (
+    echo [ERROR] Failed to query Python configuration.
     goto :fail
 )
 
-rem ==============================================================================
-rem Output filename is strictly 'audio.pyd'
-rem ==============================================================================
+set "PY_LIBNAME=python314.lib"
+if not exist "!PY_LIBDIR!\!PY_LIBNAME!" (
+    echo [ERROR] python314.lib not found in "!PY_LIBDIR!"
+    goto :fail
+)
+
 set "OUTPUT_DLL=audio.pyd"
 
 echo ====================================================
-echo   Python    : %PYTHON%
-echo   Include   : %PY_INC%
-echo   LibDir    : %PY_LIBDIR%
-echo   Implib    : %PY_IMPLIB%
-echo   Output    : %OUTPUT_DLL%
+echo   Compiler  : MSVC (cl.exe)
+echo   Python    : "!PYTHON_EXE!"
+echo   Include   : !PY_INC!
+echo   LibDir    : !PY_LIBDIR!
+echo   Implib    : !PY_LIBNAME!
+echo   Output    : !OUTPUT_DLL!
 echo ====================================================
 
-rem ==============================================================================
-rem Build
-rem ==============================================================================
-echo Building %OUTPUT_DLL%...
-gcc -shared -O2 -s -Wno-stringop-overflow -o "%OUTPUT_DLL%" audio.c ^
-    -I"." -I"%PY_INC%" ^
-    -static-libgcc -static-libstdc++ ^
-    "%PY_IMPLIB%" ^
-    -lole32 -lwinmm -luser32 -ldxguid -luuid
+cl /nologo /O2 /MD /W3 /c /I"!PY_INC!" audio.c
+if errorlevel 1 goto :fail
 
+link /nologo /DLL /RELEASE /OPT:REF /OPT:ICF /OUT:!OUTPUT_DLL! audio.obj /LIBPATH:"!PY_LIBDIR!" !PY_LIBNAME! ole32.lib winmm.lib user32.lib dxguid.lib uuid.lib
 if errorlevel 1 goto :fail
 
 echo.
-echo BUILD OK: %OUTPUT_DLL%
+echo BUILD OK: !OUTPUT_DLL!
 echo.
 echo Test:
-echo   %PYTHON% -c "import audio; print(audio.version())"
+echo   "!PYTHON_EXE!" -c "import audio; print(audio.version())"
 echo.
 pause
 exit /b 0

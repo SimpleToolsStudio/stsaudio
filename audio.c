@@ -2,7 +2,8 @@
  * Full miniaudio + minimp3 implementation.
  * 21 high-level APIs + ~1200 ma_* / mp3dec_* via PyCapsule (1:1).
  *
- * License: MIT-0.
+ * Copyright (c) 2026 SimpleToolsStudio.
+ * License: MIT.
  */
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
@@ -1555,7 +1556,7 @@ static PyMethodDef AudioMethods[] = {
 static struct PyModuleDef audio_module = {
     PyModuleDef_HEAD_INIT,
     "audio",
-    "miniaudio + minimp3 Python extension (MIT-0).",
+    "miniaudio + minimp3 Python extension (MIT).",
     -1,
     AudioMethods
 };
